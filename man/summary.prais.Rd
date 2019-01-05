@@ -7,8 +7,8 @@
 \usage{
 \method{summary}{prais}(object, ...)
 
-\method{print}{summary.prais}(x, digits = max(3L, getOption("digits") - 3L),
-  signif.stars = getOption("show.signif.stars"), ...)
+\method{print}{summary.prais}(x, digits = max(3L, getOption("digits") -
+  3L), signif.stars = getOption("show.signif.stars"), ...)
 }
 \arguments{
 \item{object}{an object of class "prais", usually, a result of a call to \code{\link{prais_winsten}}.}
@@ -36,6 +36,7 @@ where \emph{y*} is the mean of \emph{y[i]} if there is an intercept and zero oth
 \item{fstatistic}{(for models including non-intercept terms) a 3-vector with the value of the F-statistic with its numerator and denominator degrees of freedom.}
 \item{cov.unscaled}{a \eqn{p x p} matrix of (unscaled) covariances of the \emph{coef[j], j=1, ..., p}.}
 \item{dw}{a named 2-vector with the Durbin-Watson statistic of the original linear model and the Prais-Winsten estimator.}
+\item{index}{a character specifying the ID and time variables.}
 }
 \description{
 summary method for class "prais".
