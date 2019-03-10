@@ -1,27 +1,38 @@
 #' Summarising the Prais-Winsten Estimator
 #'
-#' summary method for class "prais".
+#' summary method for class \code{"prais"}.
 #'
-#' @param object an object of class "prais", usually, a result of a call to \code{\link{prais_winsten}}.
-#' @param x an object of class "summary.prais", usually, a result of a call to \code{\link{summary.prais}}.
+#' @param object an object of class \code{"prais"}, usually, a result of a call to
+#' \code{\link{prais_winsten}}.
+#' @param x an object of class \code{"summary.prais"}, usually, a result of a call to
+#' \code{\link{summary.prais}}.
 #' @param digits the number of significant digits to use when printing.
-#' @param signif.stars logical. If \code{TRUE}, 'significance stars' are printed for each coefficient.
+#' @param signif.stars logical. If \code{TRUE}, 'significance stars' are printed
+#' for each coefficient.
 #' @param ... further arguments passed to or from other methods.
 #'
-#' @return \code{summary.prais} returns a list of class "summary.prais", which contains the following components:
+#' @return \code{summary.prais} returns a list of class \code{"summary.prais"},
+#' which contains the following components:
 #' \item{call}{the matched call.}
 #' \item{residuals}{the residuals, that is the response minus the fitted values.}
 #' \item{coefficients}{a named vector of coefficients.}
 #' \item{rho}{the values of the AR(1) coefficient \eqn{\rho} from all iterations.}
 #' \item{sigma}{the square root of the estimated variance of the random error.}
-#' \item{df}{degrees of freedom, a 3-vector \emph{(p, n-p, p*)}, the first being the number of non-aliased coefficients, the last being the total number of coefficients.}
+#' \item{df}{degrees of freedom, a 3-vector \emph{(p, n-p, p*)},
+#' the first being the number of non-aliased coefficients, the last being
+#' the total number of coefficients.}
 #' \item{r.squared}{R^2, the 'fraction of variance explained by the model',
-#' \deqn{R^2 = 1 - Sum(R[i]^2) / Sum((y[i]- y*)^2),}
-#' where \emph{y*} is the mean of \emph{y[i]} if there is an intercept and zero otherwise.}
-#' \item{adj.r.squared}{the above \emph{R^2} statistic \emph{'adjusted'}, penalising for higher \emph{p}.}
-#' \item{fstatistic}{(for models including non-intercept terms) a 3-vector with the value of the F-statistic with its numerator and denominator degrees of freedom.}
-#' \item{cov.unscaled}{a \eqn{p x p} matrix of (unscaled) covariances of the \emph{coef[j], j=1, ..., p}.}
-#' \item{dw}{a named 2-vector with the Durbin-Watson statistic of the original linear model and the Prais-Winsten estimator.}
+#' \deqn{R^2 = 1 - \frac{\sum {(y_i - \hat{y}_i)^2}}{\sum {(y_i - \overline{y})^2}},}
+#' where \eqn{\overline{y}} is the mean of \eqn{y_i} for \eqn{y_i = 1, ..., N}
+#' if there is an intercept and zero otherwise.}
+#' \item{adj.r.squared}{the above \emph{R^2} statistic \emph{'adjusted'}, penalising
+#' for higher \emph{p}.}
+#' \item{fstatistic}{(for models including non-intercept terms) a 3-vector with the
+#' value of the F-statistic with its numerator and denominator degrees of freedom.}
+#' \item{cov.unscaled}{a \eqn{p \times p} matrix of (unscaled) covariances of the
+#' \emph{coef[j], j=1, ..., p}.}
+#' \item{dw}{a named 2-vector with the Durbin-Watson statistic of the original
+#' linear model and the Prais-Winsten estimator.}
 #' \item{index}{a character specifying the ID and time variables.}
 #'
 #' @export
@@ -33,17 +44,25 @@ summary.prais <- function(object, ...){
   rho <- object$rho[NROW(object$rho), "rho"]
   intercept <- "(Intercept)" %in% names(object$coefficients)
 
-  mod <- object$model
-  n <- NROW(mod)
+  mt <- object$terms
+  mt_model <- object$model
+  y_orig <- as.matrix(mt_model[, attributes(mt)$response])
+  y_name <- names(mt_model)[attributes(mt)$response]
+  dimnames(y_orig) <- list(NULL, y_name)
+  x_orig <- stats::model.matrix(object$terms, data = object$model)
+
+  mod <- cbind(y_orig, x_orig)
+
+  n <- nrow(mod)
   if (is.null(object$index)) {
     panel <- FALSE
-    groups <- NULL
+    groups <- list(1:n)
   } else {
     index <- object$index
-    groups_temp <- unique(mod[, index[1]])
+    groups_temp <- unique(mt_model[, index[1]])
     groups <- c()
     for (i in 1:length(groups_temp)){
-      pos_temp <- which(mod[, index[1]] == groups_temp[i])
+      pos_temp <- which(mt_model[, index[1]] == groups_temp[i])
       names(pos_temp) <- NULL
       groups <- c(groups, list(pos_temp))
       rm(pos_temp)
@@ -52,20 +71,10 @@ summary.prais <- function(object, ...){
     panel <- TRUE
   }
 
-  if (panel) {
-    names_mod <- names(mod)
-    names_mod <- c(names_mod[1], names_mod[which(names_mod %in% x_names)])
-    mod <- as.data.frame(mod[, names_mod])
-    names(mod) <- names_mod
-  }
-
-  pw_data <- pw_transform(mod, rho = rho, intercept = intercept, groups = groups)
+  pw_data <- .pw_transform(mod, rho = rho, intercept = intercept, groups = groups)
   if (intercept) {
     p_int <- 1L
     sst <- sum((pw_data[, 1] - mean(pw_data[, 1], na.rm = TRUE))^2, na.rm = TRUE)
-    nam <- names(mod)
-    mod <- as.matrix(cbind(mod[, 1], 1, mod[, -1]))
-    dimnames(mod) <- list(NULL, c(nam[1], "(Intercept)", nam[-1]))
   } else {
     p_int <- 0L
     sst <- sum(pw_data[, 1]^2)
@@ -129,6 +138,7 @@ summary.prais <- function(object, ...){
   dw <- c(original = dw_orig, transformed = dw_pw)
 
   result <- list("call" = cl,
+                 "terms" = mt,
                  "residuals" = object$residuals,
                  "coefficients" = coeffs,
                  "rho" = object$rho,
