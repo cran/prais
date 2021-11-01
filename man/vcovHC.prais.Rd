@@ -4,7 +4,7 @@
 \alias{vcovHC.prais}
 \title{Semirobust Covariance Matrix Estimators}
 \usage{
-vcovHC.prais(x, type = c("const", "HC1", "HC0"), ...)
+\method{vcovHC}{prais}(x, type = c("const", "HC1", "HC0"), ...)
 }
 \arguments{
 \item{x}{an object of class \code{"prais"}, usually, the result of a call to \code{\link{prais_winsten}}.}
@@ -18,7 +18,7 @@ An object of class "matrix" containing the estimate of the asymptotic covariance
 of coefficients.
 }
 \description{
-Semirobust covariance matrix estimators for model of class \code{"prais"}.
+Semirobust covariance matrix estimators for models of class \code{"prais"}.
 }
 \details{
 \code{vcovHC} is a function for estimating a robust covariance matrix of parameters for
