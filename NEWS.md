@@ -1,3 +1,8 @@
+# prais 1.1.3
+
+* Added the `barium` example data set.
+* Additional check for argument `index` of `prais_winsten`.
+
 # prais 1.1.2
 
 * Fix Lazy Data NOTE issue from CRAN results
