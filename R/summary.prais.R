@@ -14,7 +14,9 @@
 #' @return \code{summary.prais} returns a list of class \code{"summary.prais"},
 #' which contains the following components:
 #' \item{call}{the matched call.}
-#' \item{residuals}{the residuals, that is the response minus the fitted values.}
+#' \item{residuals}{the residuals of the Prais-Winsten transformed model, i.e. the
+#' residuals the reported standard errors are based on. The residuals on the scale
+#' of the original data are available as \code{residuals} of the estimated object.}
 #' \item{coefficients}{a named vector of coefficients.}
 #' \item{rho}{the values of the AR(1) coefficient \eqn{\rho} from all iterations.}
 #' \item{sigma}{the square root of the estimated variance of the random error.}
@@ -33,13 +35,17 @@
 #' \emph{coef[j], j=1, ..., p}.}
 #' \item{dw}{a named 2-vector with the Durbin-Watson statistic of the original
 #' linear model and the Prais-Winsten estimator.}
-#' \item{index}{a character specifying the ID and time variables.}
+#' \item{terms}{the terms object used.}
 #'
 #' @export
 summary.prais <- function(object, ...){
   cl <- object$call
 
   coeffs <- object$coefficients
+  # Coefficients of linearly dependent variables are NA. They are omitted from
+  # the coefficient table and the covariance matrix, as in 'summary.lm'.
+  pos_coef <- !is.na(coeffs)
+  coeffs <- coeffs[pos_coef]
   x_names <- names(coeffs)
   if (NCOL(object$rho) > 1) {
     rho <- object$rho[NROW(object$rho), ]
@@ -58,24 +64,8 @@ summary.prais <- function(object, ...){
   mod <- cbind(y_orig, x_orig)
 
   n <- nrow(mod)
-  panelwise <- FALSE
-  if (is.null(object$index)) {
-    panel <- FALSE
-    groups <- list(1:n)
-  } else {
-    index <- object$index
-    groups_temp <- unique(mt_model[, index[1]])
-    groups <- c()
-    for (i in 1:length(groups_temp)){
-      pos_temp <- which(mt_model[, index[1]] == groups_temp[i])
-      names(pos_temp) <- NULL
-      groups <- c(groups, list(pos_temp))
-      rm(pos_temp)
-    }
-    rm(groups_temp)
-    panel <- TRUE
-    if (length(rho) > 1) {panelwise <- TRUE}
-  }
+  panel <- !is.null(object$index)
+  groups <- .pw_groups(object, n)
 
   pw_data <- .pw_transform(mod, rho = rho, intercept = intercept, groups = groups)
   if (intercept) {
@@ -102,10 +92,10 @@ summary.prais <- function(object, ...){
   adj.r.squared <- NULL
   fstatistic <- NULL
   if (p > 0) {
-    cov.unscaled <- solve(crossprod(stats::na.omit(x_pw)))
+    cov.unscaled <- .pw_cov_unscaled(stats::na.omit(x_pw))
     dimnames(cov.unscaled) <- list(x_names, x_names)
     df <- c(p, rdf, NCOL(object$qr$qr))
-    est <- object$coefficients
+    est <- object$coefficients[pos_coef]
     se <- sqrt(diag(cov.unscaled) * sigma_sq)
     tval <- est / se
     coeffs <- cbind(`Estimate` = est,
@@ -130,13 +120,11 @@ summary.prais <- function(object, ...){
   }
 
   if (length(rho) == 1) {
-    d_res <- c()
-    d_res_pw <- c()
     if (panel){
-      for (i in 1:length(groups)){
-        d_res <- c(d_res, diff(res[groups[[i]]]))
-        d_res_pw <- c(d_res_pw, diff(res_pw[groups[[i]]]))
-      }
+      # The differences are obtained with 'lapply' instead of appending to a
+      # vector in a loop, which copies the whole vector in every iteration
+      d_res <- unlist(lapply(groups, function(x) {diff(res[x])}), use.names = FALSE)
+      d_res_pw <- unlist(lapply(groups, function(x) {diff(res_pw[x])}), use.names = FALSE)
     } else {
       d_res <- diff(res)
       d_res_pw <- diff(res_pw)
@@ -151,7 +139,7 @@ summary.prais <- function(object, ...){
 
   result <- list("call" = cl,
                  "terms" = mt,
-                 "residuals" = object$residuals,
+                 "residuals" = res_pw,
                  "coefficients" = coeffs,
                  "rho" = object$rho,
                  "sigma" = sigma,

@@ -10,7 +10,7 @@ print.summary.prais <- function(x, digits = max(3L, getOption("digits") - 3L),
   df <- x$df
   rdf <- df[2L]
   if (rdf > 5L) {
-    cat("Residuals:\n", sep = "")
+    cat("Residuals of the transformed model:\n", sep = "")
     nam <- c("Min", "1Q", "Median", "3Q", "Max")
     if (length(dim(resid)) == 2L) {
       rq <- structure(apply(t(resid), 1L, stats::quantile), dimnames = list(nam, dimnames(resid)[[2L]]))
@@ -33,7 +33,12 @@ print.summary.prais <- function(x, digits = max(3L, getOption("digits") - 3L),
         " iterations: ", formatC(rho, digits = digits), "\n", sep = "")
   }
   if (length(x$coefficients)) {
-    cat("\nCoefficients:\n")
+    nsingular <- x$df[3L] - x$df[1L]
+    if (nsingular > 0) {
+      cat("\nCoefficients: (", nsingular, " not defined because of singularities)\n", sep = "")
+    } else {
+      cat("\nCoefficients:\n")
+    }
     coefs <- x$coefficients
     stats::printCoefmat(coefs, digits = digits, signif.stars = signif.stars, na.print = "NA", ...)
   } else {
